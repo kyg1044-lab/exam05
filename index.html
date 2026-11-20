@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>스마트 파일 매니저 | 파일 올리기 & 내리기</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome 6 CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- JSZip CDN (다중 파일 일괄 압축 다운로드용) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <!-- Google Fonts (Noto Sans KR) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Noto Sans KR', 'sans-serif'] },
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              800: '#1e40af'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* 스크롤바 커스텀 */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #f8fafc; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    
+    .dropzone-active {
+      border-color: #2563eb !important;
+      background-color: #eff6ff !important;
+      transform: scale(1.006);
+    }
+    .pulse-dot {
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .4; }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans antialiased">
+
+  <!-- ==================== 상단 네비게이션 헤더 ==================== -->
+  <header class="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-xs">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
+          <i class="fa-solid fa-folder-open text-lg"></i>
+        </div>
+        <div>
+          <h1 class="text-base sm:text-lg font-bold text-slate-900 leading-tight">스마트 파일 매니저</h1>
+          <p class="text-xs text-slate-500" id="headerSubText">단일 파일(index.html) 통합 실행 모드</p>
+        </div>
+      </div>
+
+      <!-- 상단 액션 버튼 그룹 -->
+      <div class="flex items-center space-x-2 sm:space-x-3">
+        <!-- 상태 배지 -->
+        <div id="modeBadge" class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 mr-2 pulse-dot"></span>
+          <span id="modeBadgeText">브라우저 내장 저장소 가동 중</span>
+        </div>
+
+        <!-- 폴더 직접 열기 버튼 (Chrome / Edge File System API) -->
+        <button id="btnOpenFolder" onclick="connectLocalDirectory()" 
+                class="hidden sm:inline-flex items-center px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors">
+          <i class="fa-regular fa-folder-open mr-1.5"></i> 로컬 폴더 직접 열기
+        </button>
+
+        <button onclick="refreshData()" class="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors" title="새로고침">
+          <i class="fa-solid fa-rotate-right text-sm"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================== 메인 콘텐츠 ==================== -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <!-- 1. 요약 통계 대시보드 -->
+    <section class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
+        <div>
+          <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">보관된 파일 수</p>
+          <p class="text-2xl font-extrabold text-slate-900 mt-0.5" id="statCount">0개</p>
+        </div>
+        <div class="w-11 h-11 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-lg">
+          <i class="fa-solid fa-file-circle-check"></i>
+        </div>
+      </div>
+
+      <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
+        <div>
+          <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">총 파일 용량</p>
+          <p class="text-2xl font-extrabold text-slate-900 mt-0.5" id="statSize">0 KB</p>
+        </div>
+        <div class="w-11 h-11 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center text-lg">
+          <i class="fa-solid fa-hard-drive"></i>
+        </div>
+      </div>
+
+      <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
+        <div>
+          <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">저장소 유형</p>
+          <p class="text-sm font-bold text-indigo-600 mt-1" id="statStorageType">IndexedDB 영구보관</p>
+        </div>
+        <div class="w-11 h-11 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center text-lg">
+          <i class="fa-solid fa-database"></i>
+        </div>
+      </div>
+
+      <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
+        <div>
+          <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">최근 작업 일시</p>
+          <p class="text-xs font-bold text-slate-700 mt-1" id="statLastAction">지금 시작됨</p>
+        </div>
+        <div class="w-11 h-11 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center text-lg">
+          <i class="fa-solid fa-clock-rotate-left"></i>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. 파일 올리기 (업로드 드래그 앤 드롭 존) -->
+    <section class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5 sm:p-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+        <div>
+          <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+            <i class="fa-solid fa-cloud-arrow-up text-blue-600"></i> 파일 올리기 (업로드)
+          </h2>
+          <p class="text-xs text-slate-500 mt-0.5">파일을 드래그하거나 선택하여 파일함에 추가하세요. 브라우저를 닫아도 안전하게 유지됩니다.</p>
+        </div>
+        
+        <!-- 폴더 단위 올리기 버튼 -->
+        <div class="flex items-center gap-2">
+          <label class="cursor-pointer px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors">
+            <i class="fa-solid fa-folder-plus text-amber-500"></i> 폴더 통째로 올리기
+            <input type="file" id="folderInput" webkitdirectory directory multiple class="hidden" onchange="handleFolderSelect(event)">
+          </label>
+        </div>
+      </div>
+
+      <!-- 드래그 & 드롭 박스 -->
+      <div id="dropZone" 
+           class="relative border-2 border-dashed border-slate-300 rounded-xl p-8 sm:p-10 text-center cursor-pointer transition-all duration-200 hover:border-blue-500 hover:bg-blue-50/40 group">
+        <input type="file" id="fileInput" multiple class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="handleFileSelect(event)">
+        
+        <div class="flex flex-col items-center justify-center pointer-events-none">
+          <div class="w-16 h-16 rounded-2xl bg-blue-50 group-hover:bg-blue-100 flex items-center justify-center text-blue-600 text-2xl mb-3 transition-colors shadow-xs">
+            <i class="fa-solid fa-arrow-up-from-bracket group-hover:-translate-y-1 transition-transform"></i>
+          </div>
+          <p class="text-sm sm:text-base font-bold text-slate-800">
+            마우스로 파일을 끌어다 놓거나 <span class="text-blue-600 underline font-extrabold">여기를 클릭하여 파일 선택</span>
+          </p>
+          <p class="text-xs text-slate-400 mt-1.5">
+            문서(HWP, PDF, DOCX, XLSX), 이미지(PNG, JPG), 코드, ZIP 등 모든 파일 지원 • 다중 선택 가능
+          </p>
+        </div>
+      </div>
+
+      <!-- 업로드 진행 상태 바 -->
+      <div id="uploadProgressContainer" class="hidden mt-4 p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+        <div class="flex justify-between items-center text-xs font-semibold text-slate-700">
+          <span id="uploadProgressText">파일 올리는 중...</span>
+          <span id="uploadPercentText" class="text-blue-600 font-bold">0%</span>
+        </div>
+        <div class="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
+          <div id="uploadProgressBar" class="bg-blue-600 h-full rounded-full transition-all duration-150" style="width: 0%"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. 파일 목록 및 내리기 (다운로드 & 관리) -->
+    <section class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+      <!-- 툴바 영역 -->
+      <div class="p-4 sm:p-5 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+            <i class="fa-solid fa-file-zipper text-indigo-600"></i> 파일 보관함 (내리기 & 관리)
+          </h2>
+          <p class="text-xs text-slate-500 mt-0.5">보관된 파일을 개별로 내려받거나 전체를 ZIP 압축파일로 다운로드할 수 있습니다.</p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2.5">
+          <!-- 실시간 검색창 -->
+          <div class="relative w-full sm:w-56">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+            <input type="text" id="searchInput" oninput="applyFilters()" placeholder="파일명 검색..." 
+                   class="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all">
+          </div>
+
+          <!-- 정렬 선택 -->
+          <select id="sortSelect" onchange="applyFilters()" class="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-700">
+            <option value="date-desc">최신 등록순</option>
+            <option value="name-asc">이름 가나다순</option>
+            <option value="size-desc">용량 큰 순</option>
+            <option value="size-asc">용량 작은 순</option>
+          </select>
+
+          <!-- 일괄 ZIP 다운로드 버튼 -->
+          <button onclick="downloadAllAsZip()" class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-all">
+            <i class="fa-solid fa-file-zipper text-amber-400"></i> 전체 ZIP 다운로드
+          </button>
+
+          <!-- 전체 비우기 버튼 -->
+          <button onclick="clearAllFiles()" class="px-2.5 py-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 rounded-lg text-xs font-medium transition-colors" title="전체 비우기">
+            <i class="fa-regular fa-trash-can"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- 카테고리 필터 탭 -->
+      <div class="px-4 sm:px-5 py-2.5 bg-slate-50/70 border-b border-slate-200 flex items-center gap-1.5 overflow-x-auto text-xs font-medium">
+        <button class="filter-tab active px-3 py-1 rounded-md bg-white text-blue-600 font-bold shadow-xs border border-slate-200" onclick="setCategory('all', this)">전체 (<span id="tabCountAll">0</span>)</button>
+        <button class="filter-tab px-3 py-1 rounded-md text-slate-600 hover:bg-white hover:text-slate-900 transition-colors" onclick="setCategory('doc', this)">문서 (<span id="tabCountDoc">0</span>)</button>
+        <button class="filter-tab px-3 py-1 rounded-md text-slate-600 hover:bg-white hover:text-slate-900 transition-colors" onclick="setCategory('img', this)">이미지 (<span id="tabCountImg">0</span>)</button>
+        <button class="filter-tab px-3 py-1 rounded-md text-slate-600 hover:bg-white hover:text-slate-900 transition-colors" onclick="setCategory('code', this)">코드/데이터 (<span id="tabCountCode">0</span>)</button>
+        <button class="filter-tab px-3 py-1 rounded-md text-slate-600 hover:bg-white hover:text-slate-900 transition-colors" onclick="setCategory('zip', this)">압축파일 (<span id="tabCountZip">0</span>)</button>
+      </div>
+
+      <!-- 파일 목록 테이블 -->
+      <div class="overflow-x-auto min-h-[240px]">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="border-b border-slate-200 bg-slate-50/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              <th class="py-3 px-5">파일명</th>
+              <th class="py-3 px-4 w-32">용량</th>
+              <th class="py-3 px-4 w-44 hidden md:table-cell">등록/수정일시</th>
+              <th class="py-3 px-5 w-48 text-right">작업 (내리기/관리)</th>
+            </tr>
+          </thead>
+          <tbody id="fileListBody" class="divide-y divide-slate-100 text-xs text-slate-700">
+            <!-- 동적 렌더링 영역 -->
+          </tbody>
+        </table>
+
+        <!-- 파일 없을 때 빈 상태 안내 -->
+        <div id="emptyState" class="hidden py-16 text-center">
+          <div class="w-16 h-16 mx-auto rounded-full bg-slate-100 text-slate-400 flex items-center justify-center text-2xl mb-3">
+            <i class="fa-regular fa-folder-open"></i>
+          </div>
+          <p class="text-sm font-bold text-slate-700">보관함에 등록된 파일이 없습니다.</p>
+          <p class="text-xs text-slate-400 mt-1">위의 파일 올리기 영역으로 파일을 끌어다 놓아보세요!</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ==================== 파일 미리보기 모달 ==================== -->
+  <div id="previewModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[85vh] flex flex-col overflow-hidden border border-slate-200">
+      <div class="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+        <h3 id="previewTitle" class="text-sm font-bold text-slate-800 truncate">파일 미리보기</h3>
+        <button onclick="closePreviewModal()" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg">
+          <i class="fa-solid fa-xmark text-base"></i>
+        </button>
+      </div>
+      <div id="previewBody" class="p-5 overflow-auto flex-1 min-h-[260px] bg-slate-100/50 text-xs flex items-center justify-center">
+        <!-- 동적 미리보기 -->
+      </div>
+      <div class="px-5 py-3 border-t border-slate-200 flex justify-end gap-2 bg-slate-50">
+        <button id="previewDownloadBtn" class="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-xs">
+          <i class="fa-solid fa-download"></i> 이 파일 내리기 (다운로드)
+        </button>
+        <button onclick="closePreviewModal()" class="px-3.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-semibold">
+          닫기
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 푸터 -->
+  <footer class="mt-auto border-t border-slate-200 bg-white py-4 text-center text-xs text-slate-400">
+    <p>스마트 파일 매니저 • 통합 단일 HTML 시스템 (별도 서버 설치 불필요)</p>
+  </footer>
+
+  <!-- 토스트 메시지 알림 컨테이너 -->
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-50 space-y-2 pointer-events-none"></div>
+
+  <!-- ==================== 자바스크립트 통합 로직 ==================== -->
+  <script>
+    // 1. 상태 변수 및 IndexedDB 설정
+    const DB_NAME = 'SmartFileManagerDB_v2';
+    const STORE_NAME = 'user_files';
+    let fileList = []; // Array of { id, name, size, lastModified, extension, blob, isDirectoryApi, fileHandle }
+    let currentCategory = 'all';
+    let directoryHandle = null;
+
+    // IndexedDB 열기
+    function getDB() {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, 1);
+        req.onupgradeneeded = () => {
+          const db = req.result;
+          if (!db.objectStoreNames.contains(STORE_NAME)) {
+            db.createObjectStore(STORE_NAME, { keyPath: 'name' });
+          }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    // 파일 아이콘 및 색상 구분
+    function getFileInfo(ext) {
+      ext = (ext || '').toLowerCase().replace('.', '');
+      if (['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'bmp', 'ico'].includes(ext)) {
+        return { icon: 'fa-solid fa-file-image', color: 'text-amber-500 bg-amber-50' };
+      }
+      if (['pdf'].includes(ext)) {
+        return { icon: 'fa-solid fa-file-pdf', color: 'text-rose-500 bg-rose-50' };
+      }
+      if (['xls', 'xlsx', 'csv'].includes(ext)) {
+        return { icon: 'fa-solid fa-file-excel', color: 'text-emerald-600 bg-emerald-50' };
+      }
+      if (['doc', 'docx', 'hwp', 'hwpx', 'txt', 'rtf'].includes(ext)) {
+        return { icon: 'fa-solid fa-file-lines', color: 'text-blue-500 bg-blue-50' };
+      }
+      if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) {
+        return { icon: 'fa-solid fa-file-zipper', color: 'text-purple-600 bg-purple-50' };
+      }
+      if (['js', 'ts', 'html', 'css', 'json', 'py', 'java', 'ps1', 'bat', 'sh', 'sql', 'md'].includes(ext)) {
+        return { icon: 'fa-solid fa-file-code', color: 'text-indigo-600 bg-indigo-50' };
+      }
+      if (['mp3', 'wav', 'ogg', 'm4a'].includes(ext)) {
+        return { icon: 'fa-solid fa-file-audio', color: 'text-pink-500 bg-pink-50' };
+      }
+      if (['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(ext)) {
+        return { icon: 'fa-solid fa-file-video', color: 'text-cyan-500 bg-cyan-50' };
+      }
+      return { icon: 'fa-solid fa-file', color: 'text-slate-500 bg-slate-100' };
+    }
+
+    // 용량 포맷팅 (Bytes -> KB, MB, GB)
+    function formatBytes(bytes) {
+      if (!bytes || bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // 토스트 알림 메시지
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      const isSuccess = type === 'success';
+      toast.className = `flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold shadow-lg border transition-all duration-300 transform translate-y-4 opacity-0 pointer-events-auto ${
+        isSuccess ? 'bg-emerald-600 text-white border-emerald-500' : 'bg-rose-600 text-white border-rose-500'
+      }`;
+      toast.innerHTML = `<i class="fa-solid ${isSuccess ? 'fa-circle-check' : 'fa-circle-exclamation'}"></i><span>${message}</span>`;
+      container.appendChild(toast);
+
+      setTimeout(() => toast.classList.remove('translate-y-4', 'opacity-0'), 10);
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-4');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    // 2. 초기 로드
+    window.addEventListener('DOMContentLoaded', async () => {
+      // Chrome/Edge File System Access API 지원 여부 체크
+      if ('showDirectoryPicker' in window) {
+        document.getElementById('btnOpenFolder').classList.remove('hidden');
+        document.getElementById('btnOpenFolder').classList.add('inline-flex');
+      }
+      await loadFilesFromStorage();
+    });
+
+    // IndexedDB에서 파일 로드
+    async function loadFilesFromStorage() {
+      try {
+        const db = await getDB();
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const store = tx.objectStore(STORE_NAME);
+        const req = store.getAll();
+        req.onsuccess = () => {
+          fileList = req.result || [];
+          updateStats();
+          applyFilters();
+        };
+      } catch (err) {
+        console.error('파일 로드 실패:', err);
+      }
+    }
+
+    // Chrome/Edge 로컬 디렉터리 핸들 연결
+    async function connectLocalDirectory() {
+      if (!('showDirectoryPicker' in window)) {
+        alert('이 브라우저는 폴더 직접 접근 API를 지원하지 않습니다. 파일 올리기 버튼을 이용해 주세요.');
+        return;
+      }
+      try {
+        directoryHandle = await window.showDirectoryPicker();
+        document.getElementById('statStorageType').innerText = '로컬 폴더 동기화';
+        document.getElementById('modeBadgeText').innerText = '선택 폴더 실시간 연결됨';
+        document.getElementById('modeBadge').className = 'inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200';
+        
+        // 폴더 내 파일들 읽어서 보관함에 즉시 반영
+        for await (const entry of directoryHandle.values()) {
+          if (entry.kind === 'file') {
+            const f = await entry.getFile();
+            await saveSingleFile(f, true, entry);
+          }
+        }
+        await loadFilesFromStorage();
+        showToast('로컬 폴더와 성공적으로 연결되었습니다!');
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error(err);
+          showToast('폴더 연결 중 오류 발생', 'error');
+        }
+      }
+    }
+
+    // 3. 파일 올리기 (업로드 처리)
+    async function handleFileSelect(event) {
+      const files = event.target.files;
+      if (!files || files.length === 0) return;
+      await processUploadFiles(Array.from(files));
+      event.target.value = '';
+    }
+
+    async function handleFolderSelect(event) {
+      const files = event.target.files;
+      if (!files || files.length === 0) return;
+      await processUploadFiles(Array.from(files));
+      event.target.value = '';
+    }
+
+    async function processUploadFiles(files) {
+      const progressContainer = document.getElementById('uploadProgressContainer');
+      const progressBar = document.getElementById('uploadProgressBar');
+      const progressText = document.getElementById('uploadProgressText');
+      const percentText = document.getElementById('uploadPercentText');
+
+      progressContainer.classList.remove('hidden');
+
+      let done = 0;
+      const total = files.length;
+
+      for (const file of files) {
+        progressText.innerText = `올리는 중 (${done + 1}/${total}): ${file.name}`;
+        await saveSingleFile(file);
+        done++;
+        const pct = Math.round((done / total) * 100);
+        progressBar.style.width = pct + '%';
+        percentText.innerText = pct + '%';
+      }
+
+      showToast(`${total}개 파일 올리기 완료!`);
+      document.getElementById('statLastAction').innerText = new Date().toLocaleTimeString('ko-KR');
+
+      setTimeout(() => {
+        progressContainer.classList.add('hidden');
+        progressBar.style.width = '0%';
+      }, 700);
+
+      await loadFilesFromStorage();
+    }
+
+    async function saveSingleFile(file, isDirectoryApi = false, fileHandle = null) {
+      const db = await getDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        const record = {
+          name: file.name,
+          size: file.size,
+          lastModified: new Date(file.lastModified || Date.now()).toISOString().replace('T', ' ').substring(0, 19),
+          extension: '.' + (file.name.split('.').pop() || '').toLowerCase(),
+          blob: file,
+          isDirectoryApi: isDirectoryApi,
+          fileHandle: fileHandle
+        };
+        store.put(record);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    // 4. 파일 내리기 (다운로드 처리)
+    function downloadFile(fileName) {
+      const item = fileList.find(f => f.name === fileName);
+      if (!item || !item.blob) {
+        showToast('파일 데이터를 찾을 수 없습니다.', 'error');
+        return;
+      }
+
+      const url = URL.createObjectURL(item.blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = item.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      showToast(`'${fileName}' 내리기 완료`);
+    }
+
+    // 전체 ZIP 일괄 다운로드
+    async function downloadAllAsZip() {
+      if (fileList.length === 0) {
+        alert('보관함에 다운로드할 파일이 없습니다.');
+        return;
+      }
+      showToast('전체 파일을 ZIP으로 압축하는 중입니다...');
+      const zip = new JSZip();
+
+      for (const item of fileList) {
+        if (item.blob) {
+          zip.file(item.name, item.blob);
+        }
+      }
+
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(zipBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      const today = new Date().toISOString().substring(0, 10);
+      a.download = `파일일괄다운로드_${today}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      showToast('전체 파일 ZIP 압축 다운로드 완료!');
+    }
+
+    // 5. 파일 삭제 및 전체 비우기
+    async function deleteFile(fileName) {
+      if (!confirm(`'${fileName}' 파일을 목록에서 삭제하시겠습니까?`)) return;
+      try {
+        const db = await getDB();
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).delete(fileName);
+        tx.oncomplete = async () => {
+          showToast('파일이 삭제되었습니다.');
+          await loadFilesFromStorage();
+        };
+      } catch (e) {
+        showToast('삭제 실패', 'error');
+      }
+    }
+
+    async function clearAllFiles() {
+      if (fileList.length === 0) return;
+      if (!confirm('보관함의 모든 파일을 비우시겠습니까?')) return;
+      try {
+        const db = await getDB();
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).clear();
+        tx.oncomplete = async () => {
+          showToast('보관함이 모두 비워졌습니다.');
+          await loadFilesFromStorage();
+        };
+      } catch (e) {
+        showToast('초기화 실패', 'error');
+      }
+    }
+
+    // 새로고침
+    async function refreshData() {
+      await loadFilesFromStorage();
+      showToast('목록을 새로고침했습니다.');
+    }
+
+    // 6. 통계 업데이트
+    function updateStats() {
+      const countEl = document.getElementById('statCount');
+      const sizeEl = document.getElementById('statSize');
+
+      countEl.innerText = `${fileList.length}개`;
+      const totalBytes = fileList.reduce((sum, f) => sum + (f.size || 0), 0);
+      sizeEl.innerText = formatBytes(totalBytes);
+
+      // 카테고리별 개수 카운트
+      let docC = 0, imgC = 0, codeC = 0, zipC = 0;
+      fileList.forEach(f => {
+        const ext = (f.extension || '').replace('.', '').toLowerCase();
+        if (['doc', 'docx', 'hwp', 'hwpx', 'pdf', 'txt', 'rtf', 'ppt', 'pptx', 'xls', 'xlsx'].includes(ext)) docC++;
+        else if (['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'bmp'].includes(ext)) imgC++;
+        else if (['js', 'ts', 'html', 'css', 'json', 'py', 'java', 'ps1', 'bat', 'csv', 'sql', 'md'].includes(ext)) codeC++;
+        else if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) zipC++;
+      });
+
+      document.getElementById('tabCountAll').innerText = fileList.length;
+      document.getElementById('tabCountDoc').innerText = docC;
+      document.getElementById('tabCountImg').innerText = imgC;
+      document.getElementById('tabCountCode').innerText = codeC;
+      document.getElementById('tabCountZip').innerText = zipC;
+    }
+
+    // 7. 검색 & 필터 & 정렬
+    function applyFilters() {
+      const keyword = (document.getElementById('searchInput').value || '').toLowerCase().trim();
+      const sortType = document.getElementById('sortSelect').value;
+
+      let filtered = fileList.filter(f => {
+        if (keyword && !f.name.toLowerCase().includes(keyword)) return false;
+
+        const ext = (f.extension || '').replace('.', '').toLowerCase();
+        if (currentCategory === 'doc') {
+          return ['doc', 'docx', 'hwp', 'hwpx', 'pdf', 'txt', 'rtf', 'ppt', 'pptx', 'xls', 'xlsx'].includes(ext);
+        }
+        if (currentCategory === 'img') {
+          return ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'bmp'].includes(ext);
+        }
+        if (currentCategory === 'code') {
+          return ['js', 'ts', 'html', 'css', 'json', 'py', 'java', 'ps1', 'bat', 'csv', 'sql', 'md'].includes(ext);
+        }
+        if (currentCategory === 'zip') {
+          return ['zip', 'rar', '7z', 'tar', 'gz'].includes(ext);
+        }
+        return true;
+      });
+
+      // 정렬
+      filtered.sort((a, b) => {
+        if (sortType === 'name-asc') return a.name.localeCompare(b.name, 'ko');
+        if (sortType === 'size-desc') return (b.size || 0) - (a.size || 0);
+        if (sortType === 'size-asc') return (a.size || 0) - (b.size || 0);
+        return (b.lastModified || '').localeCompare(a.lastModified || '');
+      });
+
+      renderTable(filtered);
+    }
+
+    function setCategory(category, btn) {
+      currentCategory = category;
+      document.querySelectorAll('.filter-tab').forEach(b => {
+        b.className = 'filter-tab px-3 py-1 rounded-md text-slate-600 hover:bg-white hover:text-slate-900 transition-colors';
+      });
+      btn.className = 'filter-tab active px-3 py-1 rounded-md bg-white text-blue-600 font-bold shadow-xs border border-slate-200';
+      applyFilters();
+    }
+
+    // 8. 테이블 렌더링
+    function renderTable(files) {
+      const tbody = document.getElementById('fileListBody');
+      const emptyState = document.getElementById('emptyState');
+      tbody.innerHTML = '';
+
+      if (files.length === 0) {
+        emptyState.classList.remove('hidden');
+        return;
+      }
+      emptyState.classList.add('hidden');
+
+      files.forEach(file => {
+        const { icon, color } = getFileInfo(file.extension);
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-blue-50/40 transition-colors group';
+
+        tr.innerHTML = `
+          <td class="py-3 px-5">
+            <div class="flex items-center space-x-3">
+              <div class="w-9 h-9 rounded-xl ${color} flex items-center justify-center text-sm shadow-xs shrink-0">
+                <i class="${icon}"></i>
+              </div>
+              <div class="min-w-0">
+                <p class="font-semibold text-slate-900 truncate max-w-xs sm:max-w-md" title="${file.name}">${file.name}</p>
+                <p class="text-[11px] text-slate-400 uppercase sm:hidden">${formatBytes(file.size)}</p>
+              </div>
+            </div>
+          </td>
+          <td class="py-3 px-4 font-mono text-[11px] text-slate-600 whitespace-nowrap">
+            ${formatBytes(file.size)}
+          </td>
+          <td class="py-3 px-4 text-slate-500 text-[11px] whitespace-nowrap hidden md:table-cell">
+            ${file.lastModified || '-'}
+          </td>
+          <td class="py-3 px-5 text-right whitespace-nowrap">
+            <div class="inline-flex items-center gap-1.5">
+              <button onclick="previewFile('${encodeURIComponent(file.name)}')" 
+                      class="px-2.5 py-1 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg text-xs font-medium transition-colors" title="미리보기">
+                <i class="fa-regular fa-eye mr-1"></i>보기
+              </button>
+              <button onclick="downloadFile('${encodeURIComponent(file.name)}')" 
+                      class="px-3 py-1 bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white rounded-lg text-xs font-semibold transition-all shadow-xs flex items-center gap-1" title="파일 내리기">
+                <i class="fa-solid fa-download"></i> 내리기
+              </button>
+              <button onclick="deleteFile('${encodeURIComponent(file.name)}')" 
+                      class="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg text-xs transition-colors" title="삭제">
+                <i class="fa-regular fa-trash-can"></i>
+              </button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // 9. 파일 미리보기 (뷰어 모달)
+    async function previewFile(encodedName) {
+      const fileName = decodeURIComponent(encodedName);
+      const fileItem = fileList.find(f => f.name === fileName);
+      if (!fileItem || !fileItem.blob) return;
+
+      const modal = document.getElementById('previewModal');
+      const title = document.getElementById('previewTitle');
+      const body = document.getElementById('previewBody');
+      const downloadBtn = document.getElementById('previewDownloadBtn');
+
+      title.innerText = `미리보기: ${fileName}`;
+      downloadBtn.onclick = () => downloadFile(encodeURIComponent(fileName));
+      body.innerHTML = '<div class="text-center py-10"><i class="fa-solid fa-spinner fa-spin text-blue-600 text-2xl"></i><p class="mt-2 text-slate-500">불러오는 중...</p></div>';
+      modal.classList.remove('hidden');
+
+      const ext = (fileItem.extension || '').replace('.', '').toLowerCase();
+
+      try {
+        const blobUrl = URL.createObjectURL(fileItem.blob);
+
+        // 이미지 미리보기
+        if (['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'bmp'].includes(ext)) {
+          body.innerHTML = `
+            <div class="flex items-center justify-center p-2 w-full h-full">
+              <img src="${blobUrl}" alt="${fileName}" class="max-h-[60vh] max-w-full rounded-lg object-contain shadow-md">
+            </div>
+          `;
+          return;
+        }
+
+        // 텍스트/코드 미리보기
+        if (['txt', 'js', 'ts', 'html', 'css', 'json', 'py', 'ps1', 'bat', 'csv', 'sql', 'md'].includes(ext)) {
+          const text = await fileItem.blob.text();
+          body.innerHTML = `
+            <pre class="w-full bg-slate-900 text-slate-100 p-4 rounded-xl overflow-x-auto font-mono text-xs leading-relaxed max-h-[60vh]"><code>${escapeHtml(text)}</code></pre>
+          `;
+          return;
+        }
+
+        // 기타 바이너리 파일
+        body.innerHTML = `
+          <div class="text-center py-12">
+            <div class="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-3xl mx-auto mb-3">
+              <i class="fa-solid fa-file-arrow-down"></i>
+            </div>
+            <p class="text-sm font-bold text-slate-800">${fileName}</p>
+            <p class="text-xs text-slate-500 mt-1">이 파일은 브라우저 텍스트/이미지 뷰어를 지원하지 않습니다.</p>
+            <button onclick="downloadFile('${encodeURIComponent(fileName)}')" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition-colors">
+              파일 다운로드하여 열기
+            </button>
+          </div>
+        `;
+      } catch (err) {
+        body.innerHTML = '<div class="text-rose-500 text-center py-8">미리보기를 불러올 수 없습니다.</div>';
+      }
+    }
+
+    function closePreviewModal() {
+      document.getElementById('previewModal').classList.add('hidden');
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    // 10. 드래그 앤 드롭 이벤트
+    const dropZone = document.getElementById('dropZone');
+    ['dragenter', 'dragover'].forEach(name => {
+      dropZone.addEventListener(name, (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dropzone-active');
+      }, false);
+    });
+
+    ['dragleave', 'drop'].forEach(name => {
+      dropZone.addEventListener(name, (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dropzone-active');
+      }, false);
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      const dt = e.dataTransfer;
+      if (dt.files && dt.files.length > 0) {
+        processUploadFiles(Array.from(dt.files));
+      }
+    });
+  </script>
+</body>
+</html>
