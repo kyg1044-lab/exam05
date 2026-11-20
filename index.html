@@ -65,7 +65,7 @@
         </div>
         <div>
           <h1 class="text-base sm:text-lg font-bold text-slate-900 leading-tight">스마트 파일 매니저</h1>
-          <p class="text-xs text-slate-500" id="headerSubText">단일 파일(index.html) 통합 실행 모드</p>
+          <p class="text-xs text-slate-500" id="headerSubText">단일 파일 통합 실행 시스템 (index.html)</p>
         </div>
       </div>
 
@@ -74,15 +74,10 @@
         <!-- 상태 배지 -->
         <div id="modeBadge" class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
           <span class="w-2 h-2 rounded-full bg-emerald-500 mr-2 pulse-dot"></span>
-          <span id="modeBadgeText">브라우저 내장 저장소 가동 중</span>
+          <span id="modeBadgeText">파일 매니저 준비 완료</span>
         </div>
 
-        <!-- 폴더 직접 열기 버튼 (Chrome / Edge File System API) -->
-        <button id="btnOpenFolder" onclick="connectLocalDirectory()" 
-                class="hidden sm:inline-flex items-center px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors">
-          <i class="fa-regular fa-folder-open mr-1.5"></i> 로컬 폴더 직접 열기
-        </button>
-
+        <!-- 새로고침 버튼 -->
         <button onclick="refreshData()" class="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors" title="새로고침">
           <i class="fa-solid fa-rotate-right text-sm"></i>
         </button>
@@ -117,11 +112,11 @@
 
       <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
         <div>
-          <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">저장소 유형</p>
-          <p class="text-sm font-bold text-indigo-600 mt-1" id="statStorageType">IndexedDB 영구보관</p>
+          <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">동작 환경</p>
+          <p class="text-sm font-bold text-indigo-600 mt-1" id="statStorageType">웹 & 로컬 통합형</p>
         </div>
         <div class="w-11 h-11 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center text-lg">
-          <i class="fa-solid fa-database"></i>
+          <i class="fa-solid fa-cloud-arrow-up"></i>
         </div>
       </div>
 
@@ -143,14 +138,14 @@
           <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
             <i class="fa-solid fa-cloud-arrow-up text-blue-600"></i> 파일 올리기 (업로드)
           </h2>
-          <p class="text-xs text-slate-500 mt-0.5">파일을 드래그하거나 선택하여 파일함에 추가하세요. 브라우저를 닫아도 안전하게 유지됩니다.</p>
+          <p class="text-xs text-slate-500 mt-0.5">내 컴퓨터의 파일을 드래그하거나 선택하여 파일함에 추가하세요. 언제든 다운로드하거나 확인할 수 있습니다.</p>
         </div>
         
-        <!-- 폴더 단위 올리기 버튼 -->
+        <!-- 버튼 그룹 -->
         <div class="flex items-center gap-2">
-          <label class="cursor-pointer px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors">
-            <i class="fa-solid fa-folder-plus text-amber-500"></i> 폴더 통째로 올리기
-            <input type="file" id="folderInput" webkitdirectory directory multiple class="hidden" onchange="handleFolderSelect(event)">
+          <label class="cursor-pointer px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs">
+            <i class="fa-solid fa-plus"></i> 파일 선택하기
+            <input type="file" id="fileInputBtn" multiple class="hidden" onchange="handleFileSelect(event)">
           </label>
         </div>
       </div>
@@ -168,7 +163,7 @@
             마우스로 파일을 끌어다 놓거나 <span class="text-blue-600 underline font-extrabold">여기를 클릭하여 파일 선택</span>
           </p>
           <p class="text-xs text-slate-400 mt-1.5">
-            문서(HWP, PDF, DOCX, XLSX), 이미지(PNG, JPG), 코드, ZIP 등 모든 파일 지원 • 다중 선택 가능
+            이미지(PNG, JPG), 문서(HWP, PDF, DOCX, XLSX), 코드, ZIP 등 모든 파일 형식 지원 • 다중 파일 일괄 업로드 가능
           </p>
         </div>
       </div>
@@ -176,7 +171,7 @@
       <!-- 업로드 진행 상태 바 -->
       <div id="uploadProgressContainer" class="hidden mt-4 p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
         <div class="flex justify-between items-center text-xs font-semibold text-slate-700">
-          <span id="uploadProgressText">파일 올리는 중...</span>
+          <span id="uploadProgressText">파일 등록 중...</span>
           <span id="uploadPercentText" class="text-blue-600 font-bold">0%</span>
         </div>
         <div class="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
@@ -255,7 +250,7 @@
             <i class="fa-regular fa-folder-open"></i>
           </div>
           <p class="text-sm font-bold text-slate-700">보관함에 등록된 파일이 없습니다.</p>
-          <p class="text-xs text-slate-400 mt-1">위의 파일 올리기 영역으로 파일을 끌어다 놓아보세요!</p>
+          <p class="text-xs text-slate-400 mt-1">상단의 파일 올리기 영역으로 파일을 끌어다 놓아보세요.</p>
         </div>
       </div>
     </section>
@@ -286,7 +281,7 @@
 
   <!-- 푸터 -->
   <footer class="mt-auto border-t border-slate-200 bg-white py-4 text-center text-xs text-slate-400">
-    <p>스마트 파일 매니저 • 통합 단일 HTML 시스템 (별도 서버 설치 불필요)</p>
+    <p>스마트 파일 매니저 • 단일 파일 통합 시스템 (index.html 하나로 실행)</p>
   </footer>
 
   <!-- 토스트 메시지 알림 컨테이너 -->
@@ -294,12 +289,23 @@
 
   <!-- ==================== 자바스크립트 통합 로직 ==================== -->
   <script>
-    // 1. 상태 변수 및 IndexedDB 설정
-    const DB_NAME = 'SmartFileManagerDB_v2';
-    const STORE_NAME = 'user_files';
-    let fileList = []; // Array of { id, name, size, lastModified, extension, blob, isDirectoryApi, fileHandle }
+    // 0. 현재 폴더에 들어 있는 기본 파일 목록
+    const BASE_DIRECTORY_FILES = [
+      {
+        name: 'pexels-oruginphotography-40352257.jpg',
+        size: 2821149,
+        lastModified: '2026-11-20 09:42:26',
+        extension: '.jpg',
+        path: './pexels-oruginphotography-40352257.jpg',
+        isBaseFile: true
+      }
+    ];
+
+    // 1. 상태 변수 및 IndexedDB 영구 저장소 설정
+    const DB_NAME = 'IntegratedFileManagerDB_v1';
+    const STORE_NAME = 'stored_files';
+    let fileList = []; 
     let currentCategory = 'all';
-    let directoryHandle = null;
 
     // IndexedDB 열기
     function getDB() {
@@ -346,7 +352,7 @@
       return { icon: 'fa-solid fa-file', color: 'text-slate-500 bg-slate-100' };
     }
 
-    // 용량 포맷팅 (Bytes -> KB, MB, GB)
+    // 용량 포맷팅 (Bytes -> KB, MB)
     function formatBytes(bytes) {
       if (!bytes || bytes === 0) return '0 Bytes';
       const k = 1024;
@@ -375,57 +381,45 @@
 
     // 2. 초기 로드
     window.addEventListener('DOMContentLoaded', async () => {
-      // Chrome/Edge File System Access API 지원 여부 체크
-      if ('showDirectoryPicker' in window) {
-        document.getElementById('btnOpenFolder').classList.remove('hidden');
-        document.getElementById('btnOpenFolder').classList.add('inline-flex');
+      // 서버에서 구동 중인지 로컬 파일인지 표시
+      const isHttp = location.protocol.startsWith('http');
+      const modeText = document.getElementById('modeBadgeText');
+      if (isHttp) {
+        modeText.innerText = '웹 서버 호스팅 가동 중';
+      } else {
+        modeText.innerText = '로컬 브라우저 단독 모드';
       }
-      await loadFilesFromStorage();
+
+      await loadAllStoredFiles();
     });
 
-    // IndexedDB에서 파일 로드
-    async function loadFilesFromStorage() {
+    // 파일 로드 및 기본 파일 병합
+    async function loadAllStoredFiles() {
       try {
         const db = await getDB();
         const tx = db.transaction(STORE_NAME, 'readonly');
         const store = tx.objectStore(STORE_NAME);
         const req = store.getAll();
+
         req.onsuccess = () => {
-          fileList = req.result || [];
+          const customFiles = req.result || [];
+          
+          // BASE_DIRECTORY_FILES 와 합치기 (중복 방지)
+          let combined = [...customFiles];
+          BASE_DIRECTORY_FILES.forEach(base => {
+            if (!combined.some(f => f.name === base.name)) {
+              combined.push(base);
+            }
+          });
+
+          fileList = combined;
           updateStats();
           applyFilters();
         };
       } catch (err) {
-        console.error('파일 로드 실패:', err);
-      }
-    }
-
-    // Chrome/Edge 로컬 디렉터리 핸들 연결
-    async function connectLocalDirectory() {
-      if (!('showDirectoryPicker' in window)) {
-        alert('이 브라우저는 폴더 직접 접근 API를 지원하지 않습니다. 파일 올리기 버튼을 이용해 주세요.');
-        return;
-      }
-      try {
-        directoryHandle = await window.showDirectoryPicker();
-        document.getElementById('statStorageType').innerText = '로컬 폴더 동기화';
-        document.getElementById('modeBadgeText').innerText = '선택 폴더 실시간 연결됨';
-        document.getElementById('modeBadge').className = 'inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200';
-        
-        // 폴더 내 파일들 읽어서 보관함에 즉시 반영
-        for await (const entry of directoryHandle.values()) {
-          if (entry.kind === 'file') {
-            const f = await entry.getFile();
-            await saveSingleFile(f, true, entry);
-          }
-        }
-        await loadFilesFromStorage();
-        showToast('로컬 폴더와 성공적으로 연결되었습니다!');
-      } catch (err) {
-        if (err.name !== 'AbortError') {
-          console.error(err);
-          showToast('폴더 연결 중 오류 발생', 'error');
-        }
+        fileList = [...BASE_DIRECTORY_FILES];
+        updateStats();
+        applyFilters();
       }
     }
 
@@ -433,18 +427,11 @@
     async function handleFileSelect(event) {
       const files = event.target.files;
       if (!files || files.length === 0) return;
-      await processUploadFiles(Array.from(files));
+      await uploadFiles(Array.from(files));
       event.target.value = '';
     }
 
-    async function handleFolderSelect(event) {
-      const files = event.target.files;
-      if (!files || files.length === 0) return;
-      await processUploadFiles(Array.from(files));
-      event.target.value = '';
-    }
-
-    async function processUploadFiles(files) {
+    async function uploadFiles(files) {
       const progressContainer = document.getElementById('uploadProgressContainer');
       const progressBar = document.getElementById('uploadProgressBar');
       const progressText = document.getElementById('uploadProgressText');
@@ -454,10 +441,26 @@
 
       let done = 0;
       const total = files.length;
+      const db = await getDB();
 
       for (const file of files) {
-        progressText.innerText = `올리는 중 (${done + 1}/${total}): ${file.name}`;
-        await saveSingleFile(file);
+        progressText.innerText = `파일 등록 중 (${done + 1}/${total}): ${file.name}`;
+
+        // IndexedDB에 영구 저장
+        await new Promise((resolve) => {
+          const tx = db.transaction(STORE_NAME, 'readwrite');
+          const store = tx.objectStore(STORE_NAME);
+          store.put({
+            name: file.name,
+            size: file.size,
+            lastModified: new Date(file.lastModified || Date.now()).toISOString().replace('T', ' ').substring(0, 19),
+            extension: '.' + (file.name.split('.').pop() || '').toLowerCase(),
+            blob: file
+          });
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => resolve();
+        });
+
         done++;
         const pct = Math.round((done / total) * 100);
         progressBar.style.width = pct + '%';
@@ -472,47 +475,37 @@
         progressBar.style.width = '0%';
       }, 700);
 
-      await loadFilesFromStorage();
-    }
-
-    async function saveSingleFile(file, isDirectoryApi = false, fileHandle = null) {
-      const db = await getDB();
-      return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_NAME, 'readwrite');
-        const store = tx.objectStore(STORE_NAME);
-        const record = {
-          name: file.name,
-          size: file.size,
-          lastModified: new Date(file.lastModified || Date.now()).toISOString().replace('T', ' ').substring(0, 19),
-          extension: '.' + (file.name.split('.').pop() || '').toLowerCase(),
-          blob: file,
-          isDirectoryApi: isDirectoryApi,
-          fileHandle: fileHandle
-        };
-        store.put(record);
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-      });
+      await loadAllStoredFiles();
     }
 
     // 4. 파일 내리기 (다운로드 처리)
-    function downloadFile(fileName) {
+    function downloadFile(encodedName) {
+      const fileName = decodeURIComponent(encodedName);
       const item = fileList.find(f => f.name === fileName);
-      if (!item || !item.blob) {
-        showToast('파일 데이터를 찾을 수 없습니다.', 'error');
+      if (!item) return;
+
+      // 1) blob이 있는 경우
+      if (item.blob) {
+        const url = URL.createObjectURL(item.blob);
+        triggerDownload(url, fileName);
+        URL.revokeObjectURL(url);
+        showToast(`'${fileName}' 내리기 완료`);
         return;
       }
 
-      const url = URL.createObjectURL(item.blob);
+      // 2) 기본 파일인 경우 (상대 경로로 직접 다운로드)
+      const downloadPath = item.path || `./${encodeURIComponent(fileName)}`;
+      triggerDownload(downloadPath, fileName);
+      showToast(`'${fileName}' 내리기 완료`);
+    }
+
+    function triggerDownload(url, filename) {
       const a = document.createElement('a');
       a.href = url;
-      a.download = item.name;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      showToast(`'${fileName}' 내리기 완료`);
     }
 
     // 전체 ZIP 일괄 다운로드
@@ -525,60 +518,77 @@
       const zip = new JSZip();
 
       for (const item of fileList) {
-        if (item.blob) {
-          zip.file(item.name, item.blob);
+        try {
+          if (item.blob) {
+            zip.file(item.name, item.blob);
+          } else {
+            const fileUrl = item.path || `./${encodeURIComponent(item.name)}`;
+            const res = await fetch(fileUrl);
+            if (res.ok) {
+              const blob = await res.blob();
+              zip.file(item.name, blob);
+            }
+          }
+        } catch (e) {
+          console.warn('ZIP 압축 중 오류 건너뜀:', item.name, e);
         }
       }
 
       const zipBlob = await zip.generateAsync({ type: 'blob' });
       const url = URL.createObjectURL(zipBlob);
-      const a = document.createElement('a');
-      a.href = url;
       const today = new Date().toISOString().substring(0, 10);
-      a.download = `파일일괄다운로드_${today}.zip`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      triggerDownload(url, `파일일괄다운로드_${today}.zip`);
       URL.revokeObjectURL(url);
 
       showToast('전체 파일 ZIP 압축 다운로드 완료!');
     }
 
     // 5. 파일 삭제 및 전체 비우기
-    async function deleteFile(fileName) {
-      if (!confirm(`'${fileName}' 파일을 목록에서 삭제하시겠습니까?`)) return;
+    async function deleteFile(encodedName) {
+      const fileName = decodeURIComponent(encodedName);
+      if (!confirm(`'${fileName}' 파일을 보관함에서 삭제하시겠습니까?`)) return;
+
       try {
         const db = await getDB();
         const tx = db.transaction(STORE_NAME, 'readwrite');
         tx.objectStore(STORE_NAME).delete(fileName);
-        tx.oncomplete = async () => {
+        tx.oncomplete = () => {
+          fileList = fileList.filter(f => f.name !== fileName);
+          updateStats();
+          applyFilters();
           showToast('파일이 삭제되었습니다.');
-          await loadFilesFromStorage();
         };
       } catch (e) {
-        showToast('삭제 실패', 'error');
+        fileList = fileList.filter(f => f.name !== fileName);
+        updateStats();
+        applyFilters();
       }
     }
 
     async function clearAllFiles() {
       if (fileList.length === 0) return;
       if (!confirm('보관함의 모든 파일을 비우시겠습니까?')) return;
+
       try {
         const db = await getDB();
         const tx = db.transaction(STORE_NAME, 'readwrite');
         tx.objectStore(STORE_NAME).clear();
-        tx.oncomplete = async () => {
+        tx.oncomplete = () => {
+          fileList = [];
+          updateStats();
+          applyFilters();
           showToast('보관함이 모두 비워졌습니다.');
-          await loadFilesFromStorage();
         };
       } catch (e) {
-        showToast('초기화 실패', 'error');
+        fileList = [];
+        updateStats();
+        applyFilters();
       }
     }
 
     // 새로고침
     async function refreshData() {
-      await loadFilesFromStorage();
+      await loadAllStoredFiles();
       showToast('목록을 새로고침했습니다.');
     }
 
@@ -591,7 +601,6 @@
       const totalBytes = fileList.reduce((sum, f) => sum + (f.size || 0), 0);
       sizeEl.innerText = formatBytes(totalBytes);
 
-      // 카테고리별 개수 카운트
       let docC = 0, imgC = 0, codeC = 0, zipC = 0;
       fileList.forEach(f => {
         const ext = (f.extension || '').replace('.', '').toLowerCase();
@@ -632,7 +641,6 @@
         return true;
       });
 
-      // 정렬
       filtered.sort((a, b) => {
         if (sortType === 'name-asc') return a.name.localeCompare(b.name, 'ko');
         if (sortType === 'size-desc') return (b.size || 0) - (a.size || 0);
@@ -712,7 +720,7 @@
     async function previewFile(encodedName) {
       const fileName = decodeURIComponent(encodedName);
       const fileItem = fileList.find(f => f.name === fileName);
-      if (!fileItem || !fileItem.blob) return;
+      if (!fileItem) return;
 
       const modal = document.getElementById('previewModal');
       const title = document.getElementById('previewTitle');
@@ -727,13 +735,16 @@
       const ext = (fileItem.extension || '').replace('.', '').toLowerCase();
 
       try {
-        const blobUrl = URL.createObjectURL(fileItem.blob);
+        let fileSrc = fileItem.path || `./${encodeURIComponent(fileName)}`;
+        if (fileItem.blob) {
+          fileSrc = URL.createObjectURL(fileItem.blob);
+        }
 
         // 이미지 미리보기
         if (['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'bmp'].includes(ext)) {
           body.innerHTML = `
             <div class="flex items-center justify-center p-2 w-full h-full">
-              <img src="${blobUrl}" alt="${fileName}" class="max-h-[60vh] max-w-full rounded-lg object-contain shadow-md">
+              <img src="${fileSrc}" alt="${fileName}" class="max-h-[60vh] max-w-full rounded-lg object-contain shadow-md">
             </div>
           `;
           return;
@@ -741,7 +752,13 @@
 
         // 텍스트/코드 미리보기
         if (['txt', 'js', 'ts', 'html', 'css', 'json', 'py', 'ps1', 'bat', 'csv', 'sql', 'md'].includes(ext)) {
-          const text = await fileItem.blob.text();
+          let text = '';
+          if (fileItem.blob) {
+            text = await fileItem.blob.text();
+          } else {
+            const res = await fetch(fileSrc);
+            text = await res.text();
+          }
           body.innerHTML = `
             <pre class="w-full bg-slate-900 text-slate-100 p-4 rounded-xl overflow-x-auto font-mono text-xs leading-relaxed max-h-[60vh]"><code>${escapeHtml(text)}</code></pre>
           `;
@@ -755,7 +772,7 @@
               <i class="fa-solid fa-file-arrow-down"></i>
             </div>
             <p class="text-sm font-bold text-slate-800">${fileName}</p>
-            <p class="text-xs text-slate-500 mt-1">이 파일은 브라우저 텍스트/이미지 뷰어를 지원하지 않습니다.</p>
+            <p class="text-xs text-slate-500 mt-1">이 파일은 브라우저 텍스트/이미지 인라인 뷰어를 지원하지 않습니다.</p>
             <button onclick="downloadFile('${encodeURIComponent(fileName)}')" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition-colors">
               파일 다운로드하여 열기
             </button>
@@ -774,7 +791,7 @@
       return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
-    // 10. 드래그 앤 드롭 이벤트
+    // 10. 드래그 앤 드롭 이벤트 바인딩
     const dropZone = document.getElementById('dropZone');
     ['dragenter', 'dragover'].forEach(name => {
       dropZone.addEventListener(name, (e) => {
@@ -793,7 +810,7 @@
     dropZone.addEventListener('drop', (e) => {
       const dt = e.dataTransfer;
       if (dt.files && dt.files.length > 0) {
-        processUploadFiles(Array.from(dt.files));
+        uploadFiles(Array.from(dt.files));
       }
     });
   </script>
